@@ -1,11 +1,11 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "ui_pref_main_window.h"
 #include "preferences_page_impl.h"
 #include "hacks_core.h"
 #include "hacks_vars.h"
 #include "hacks_guids.h"
 
-DECLARE_PREFERENCES_PAGE("Main window", UIPrefMainWindowDialog, 50.0, OpenHacksGuids::kMainWindowPageGuid, preferences_page::guid_display);
+DECLARE_PREFERENCES_PAGE(u8"主窗口", UIPrefMainWindowDialog, 50.0, OpenHacksGuids::kMainWindowPageGuid, preferences_page::guid_display);
 
 namespace
 {
@@ -33,8 +33,8 @@ void UIPrefMainWindowDialog::OnInitDialog()
     SetHeaderFont(IDC_PREF_HEADER3);
 
     mComboFrameStyle.Attach(GetDlgItem(IDC_FRAME_STYLE));
-    mComboFrameStyle.AddString(TEXT("Default"));
-    mComboFrameStyle.AddString(TEXT("No border"));
+    mComboFrameStyle.AddString(TEXT("默认"));
+    mComboFrameStyle.AddString(TEXT("无边框"));
 
     // Setup spin controls for size constraints
     CUpDownCtrl spinMinWidth(::GetDlgItem(m_hWnd, IDC_SPIN_MIN_WIDTH));
