@@ -7,13 +7,39 @@
 
 namespace
 {
+// ============================================================================
+// Why hook CreateFontIndirectW/ExW
+//
+// Windows computes dialog template units (DLU) → pixels using "dialog base
+// units", which are derived from the *font* assigned to the dialog (via
+// DS_SETFONT in the template). The internal flow during CreateDialogParam*
+// is roughly:
+//
+//   1. Parse the DS_SETFONT field (pointSize, weight, italic, typeface).
+//   2. Build a LOGFONT and call CreateFontIndirect{,Ex}W to create the font.
+//   3. Use the resulting font's tmAveCharWidth / tmHeight as the dialog
+//      base units. Every control's DLU coordinates are then multiplied by
+//      these base units and divided by 4 to get pixels.
+//
+// We hook CreateFontIndirectW/ExW during Preferences dialog creation and
+// re-scale lfHeight by (boostedDpi / sysDpi). This makes the dialog font
+// grow proportionally, and since base units track the font size, every
+// DLU-derived control coordinate scales up automatically — no manual layout
+// needed.
+//
+// We deliberately do NOT hook GetDeviceCaps(LOGPIXELSX/SY) here. Reason:
+// Windows may or may not call GetDeviceCaps when building the LOGFONT;
+// if it does and we also rescale lfHeight, the font gets scaled twice.
+// Hooking only at the font layer gives a clean single-step scaling.
+// ============================================================================
+
 // Original function pointers populated by minhook.
-// GetDeviceCaps is the DPI query API we override during Preferences creation.
-int(WINAPI* OriginGetDeviceCaps)(HDC hdc, int index) = nullptr;
+HFONT(WINAPI* OriginCreateFontIndirectW)(LOGFONTW* lplf) = nullptr;
+HFONT(WINAPI* OriginCreateFontIndirectExW)(ENUMLOGFONTEXW* lpelfe, DWORD fdwStyle) = nullptr;
 
 // foobar2000 core creates the Preferences container dialog through one of
 // these APIs with owner = main window. We hook them to bracket the creation
-// call with GetDeviceCaps override.
+// call with DPI override.
 INT_PTR(WINAPI* OriginDialogBoxParamW)(HINSTANCE, LPCWSTR, HWND, DLGPROC, LPARAM) = nullptr;
 INT_PTR(WINAPI* OriginDialogBoxIndirectParamW)(HINSTANCE, LPCDLGTEMPLATEW, HWND, DLGPROC, LPARAM) = nullptr;
 HWND(WINAPI* OriginCreateDialogParamW)(HINSTANCE, LPCWSTR, HWND, DLGPROC, LPARAM) = nullptr;
@@ -22,16 +48,13 @@ HWND(WINAPI* OriginCreateDialogIndirectParamW)(HINSTANCE, LPCDLGTEMPLATEW, HWND,
 // State
 std::atomic<bool> gHookInstalled{false};
 
-// thread-local override state: true while we are inside a Preferences dialog
-// creation call so that GetDeviceCaps queries for LOGPIXELSX/SY return the
-// boosted DPI value.
-//
-// A depth counter guards against (theoretical) nested main-window-owned
-// dialog creation: inner BeginOverride/EndOverride pairs do not perturb the
-// outer scope's DPI value.
+// thread-local override state: active while we are inside a Preferences
+// dialog creation call. A depth counter guards against (theoretical)
+// nested main-window-owned dialog creation.
 thread_local uint32_t tOverrideDepth = 0;
 thread_local bool tOverrideActive = false;
-thread_local uint32_t tOverrideDPI = 0;
+thread_local uint32_t tOverrideDPI = 0;   // boosted DPI value
+thread_local uint32_t tSystemDPI = 0;     // real system DPI captured at Begin
 
 // Upper bound for the boost to avoid runaway scaling on extreme DPIs.
 constexpr uint32_t kMaxBoostedDPI = 240; // 250%
@@ -79,8 +102,8 @@ void BeginOverride()
 
     // Query real system DPI here. The hook is not yet active (depth was 0
     // before this call), so GetDeviceCaps will call the real implementation.
-    const uint32_t sysDpi = QuerySystemDPI();
-    tOverrideDPI = BoostDpi(sysDpi);
+    tSystemDPI = QuerySystemDPI();
+    tOverrideDPI = BoostDpi(tSystemDPI);
     tOverrideActive = true;
 }
 
@@ -94,11 +117,10 @@ void EndOverride()
 
     tOverrideActive = false;
     tOverrideDPI = 0;
+    tSystemDPI = 0;
 }
 
 // Check whether the given owner HWND is the foobar2000 main window.
-// We avoid calling core_api::get_main_window() repeatedly here since
-// the main window HWND is stable for the process lifetime.
 bool IsMainWindowOwner(HWND owner)
 {
     if (owner == nullptr)
@@ -148,7 +170,7 @@ bool TemplateHasTreeViewControl(LPCDLGTEMPLATEW pTemplate)
 
     if (isEx)
     {
-        // DLGTEMPLATEEX layout (WORD units):
+        // DLGTEMPLATEEX (extended) layout, in WORD units:
         //   0: dlgVer (1)
         //   1: signature (0xFFFF)
         //   2-3: helpID (DWORD)
@@ -158,11 +180,11 @@ bool TemplateHasTreeViewControl(LPCDLGTEMPLATEW pTemplate)
         //   9: x, 10: y, 11: cx, 12: cy
         style = static_cast<DWORD>(pw[6]) | (static_cast<DWORD>(pw[7]) << 16);
         cItems = pw[8];
-        pCursor = pw + 13; // past header
+        pCursor = pw + 13;
     }
     else
     {
-        // DLGTEMPLATE layout (WORD units):
+        // DLGTEMPLATE layout, in WORD units:
         //   0-1: style (DWORD)
         //   2-3: exStyle (DWORD)
         //   4: cdit
@@ -202,10 +224,10 @@ bool TemplateHasTreeViewControl(LPCDLGTEMPLATEW pTemplate)
     {
         if (isEx)
         {
-            // pointSize(1), weight(1), italic+charset packed in 1 WORD, typeface string
+            // pointSize(1), weight(1), italic(1B)+charset(1B) packed in 1 WORD, typeface string
             pCursor += 1; // pointSize
             pCursor += 1; // weight
-            pCursor += 1; // italic + charset (1 byte each, packed as 1 WORD)
+            pCursor += 1; // italic + charset
             SkipTitle(pCursor); // typeface
         }
         else
@@ -218,19 +240,19 @@ bool TemplateHasTreeViewControl(LPCDLGTEMPLATEW pTemplate)
     // Iterate items
     for (WORD i = 0; i < cItems; ++i)
     {
-        // DWORD-align pCursor
+        // DWORD-align pCursor (advance to next 4-byte boundary)
         pCursor = reinterpret_cast<const WORD*>(
             (reinterpret_cast<uintptr_t>(pCursor) + 3) & ~static_cast<uintptr_t>(3));
 
         // Skip item header
         if (isEx)
         {
-            // DLGITEMTEMPLATEEX: helpID(2), exStyle(2), style(2), x(1), y(1), cx(1), cy(1), id(2) = 12 words
+            // DLGITEMTEMPLATEEX: helpID(2), exStyle(2), style(2), x(1), y(1), cx(1), cy(1), id(2)
             pCursor += 12;
         }
         else
         {
-            // DLGITEMTEMPLATE: style(2), exStyle(2), x(1), y(1), cx(1), cy(1), id(2) = 10 words
+            // DLGITEMTEMPLATE: style(2), exStyle(2), x(1), y(1), cx(1), cy(1), id(2)
             pCursor += 10;
         }
 
@@ -290,6 +312,25 @@ bool IsPreferencesDialogResource(HINSTANCE hInstance, LPCWSTR name)
     if (!name)
         return false;
 
+    // MAKEINTRESOURCE means low-word is resource id, high-word is 0
+    if (IS_INTRESOURCE(name))
+    {
+        HRSRC hRes = FindResourceW(hInstance, name, RT_DIALOG);
+        if (!hRes)
+            return false;
+
+        HGLOBAL hLoad = LoadResource(hInstance, hRes);
+        if (!hLoad)
+            return false;
+
+        LPCDLGTEMPLATEW pTemplate = reinterpret_cast<LPCDLGTEMPLATEW>(LockResource(hLoad));
+        if (!pTemplate)
+            return false;
+
+        return TemplateHasTreeViewControl(pTemplate);
+    }
+
+    // String resource name — load by name
     HRSRC hRes = FindResourceW(hInstance, name, RT_DIALOG);
     if (!hRes)
         return false;
@@ -311,23 +352,52 @@ bool IsPreferencesDialogTemplateIndirect(LPCDLGTEMPLATEW pTemplate)
     return pTemplate && TemplateHasTreeViewControl(pTemplate);
 }
 
+// ============================================================================
 // Hook implementations
-int WINAPI HookGetDeviceCaps(HDC hdc, int index)
+// ============================================================================
+
+// Re-scale the LOGFONT height to the boosted DPI. lfHeight is sign-bearing:
+//   lfHeight > 0: cell height (rarely used by dialog templates)
+//   lfHeight < 0: |lfHeight| is the font height (the common case)
+//   lfHeight = 0: default — leave alone (Windows picks based on DPI)
+//
+// We multiply |lfHeight| by boostedDpi/sysDpi, preserving the sign, so the
+// dialog font grows proportionally. As a side effect the dialog base units
+// grow with the font, so every DLU-derived control coordinate scales up
+// automatically.
+void RescaleLogFont(LOGFONTW& lf)
 {
-    if (tOverrideActive && (index == LOGPIXELSX || index == LOGPIXELSY))
+    if (lf.lfHeight == 0 || tSystemDPI == 0)
+        return;
+
+    // Multiply by boost ratio, preserving sign.
+    LONG scaled = static_cast<LONG>(
+        MulDiv(static_cast<int>(lf.lfHeight < 0 ? -lf.lfHeight : lf.lfHeight),
+               static_cast<int>(tOverrideDPI),
+               static_cast<int>(tSystemDPI)));
+    lf.lfHeight = lf.lfHeight < 0 ? -scaled : scaled;
+}
+
+HFONT WINAPI HookCreateFontIndirectW(LOGFONTW* lplf)
+{
+    if (tOverrideActive && lplf != nullptr)
     {
-        return static_cast<int>(tOverrideDPI);
+        RescaleLogFont(*lplf);
     }
-    return OriginGetDeviceCaps(hdc, index);
+    return OriginCreateFontIndirectW(lplf);
+}
+
+HFONT WINAPI HookCreateFontIndirectExW(ENUMLOGFONTEXW* lpelfe, DWORD fdwStyle)
+{
+    if (tOverrideActive && lpelfe != nullptr)
+    {
+        RescaleLogFont(lpelfe->elfLogFont);
+    }
+    return OriginCreateFontIndirectExW(lpelfe, fdwStyle);
 }
 
 INT_PTR WINAPI HookDialogBoxParamW(HINSTANCE hInstance, LPCWSTR lpTemplateName, HWND hWndParent, DLGPROC lpDialogFunc, LPARAM dwInitParam)
 {
-    // Only override DPI for the Preferences dialog, identified by:
-    //   1. owner == foobar2000 main window
-    //   2. the dialog template contains a SysTreeView32 control
-    // This excludes other main-window-owned dialogs (About, Converter, etc.)
-    // which do not have a tree view.
     if (IsMainWindowOwner(hWndParent) && IsPreferencesDialogResource(hInstance, lpTemplateName))
     {
         ScopedOverride guard;
@@ -378,15 +448,18 @@ void DisableAllHooks()
     if (!gHookInstalled.exchange(false))
         return;
 
-    // Disable (but do not Uninitialize) all hooks. We must not call
-    // MH_Uninitialize because the COM module also uses minhook for
-    // CLSIDFromProgID interception, and Uninitialize would tear down
-    // its hook as well. Disabling our hooks is enough — minhook state
-    // will be cleaned up automatically at process exit.
-    if (OriginGetDeviceCaps != nullptr)
+    // Disable (but do not Uninitialize) all hooks. The COM module also uses
+    // minhook for CLSIDFromProgID interception; Uninitialize would tear its
+    // hook down too. Disabling ours is enough.
+    if (OriginCreateFontIndirectW != nullptr)
     {
-        (void)MH_DisableHook(&GetDeviceCaps);
-        OriginGetDeviceCaps = nullptr;
+        (void)MH_DisableHook(&CreateFontIndirectW);
+        OriginCreateFontIndirectW = nullptr;
+    }
+    if (OriginCreateFontIndirectExW != nullptr)
+    {
+        (void)MH_DisableHook(&CreateFontIndirectExW);
+        OriginCreateFontIndirectExW = nullptr;
     }
     if (OriginDialogBoxParamW != nullptr)
     {
@@ -420,8 +493,7 @@ bool Initialize()
 
     // MH_Initialize may have already been called by the COM module
     // (CLSIDFromProgID hook). Calling it again returns
-    // MH_ERROR_ALREADY_INITIALIZED, which we treat as success. Any other
-    // error is fatal — we cannot proceed without minhook.
+    // MH_ERROR_ALREADY_INITIALIZED, which we treat as success.
     const MH_STATUS initStatus = MH_Initialize();
     if (initStatus != MH_OK && initStatus != MH_ERROR_ALREADY_INITIALIZED)
     {
@@ -430,11 +502,15 @@ bool Initialize()
     }
 
     bool ok = true;
-    ok &= EnableOneHook(&GetDeviceCaps, &HookGetDeviceCaps, reinterpret_cast<void**>(&OriginGetDeviceCaps));
+    ok &= EnableOneHook(&CreateFontIndirectW, &HookCreateFontIndirectW,
+                        reinterpret_cast<void**>(&OriginCreateFontIndirectW));
+    ok &= EnableOneHook(&CreateFontIndirectExW, &HookCreateFontIndirectExW,
+                        reinterpret_cast<void**>(&OriginCreateFontIndirectExW));
     ok &= EnableOneHook(&DialogBoxParamW, &HookDialogBoxParamW, reinterpret_cast<void**>(&OriginDialogBoxParamW));
     ok &= EnableOneHook(&DialogBoxIndirectParamW, &HookDialogBoxIndirectParamW,
                         reinterpret_cast<void**>(&OriginDialogBoxIndirectParamW));
-    ok &= EnableOneHook(&CreateDialogParamW, &HookCreateDialogParamW, reinterpret_cast<void**>(&OriginCreateDialogParamW));
+    ok &= EnableOneHook(&CreateDialogParamW, &HookCreateDialogParamW,
+                        reinterpret_cast<void**>(&OriginCreateDialogParamW));
     ok &= EnableOneHook(&CreateDialogIndirectParamW, &HookCreateDialogIndirectParamW,
                         reinterpret_cast<void**>(&OriginCreateDialogIndirectParamW));
 
