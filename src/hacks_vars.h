@@ -144,6 +144,7 @@ extern cfg_int MainWindowFrameStyle;
 extern cfg_struct_t<PseudoCaptionParam> PseudoCaptionSettings;
 extern cfg_struct_t<WindowStateData> SavedWindowState;
 extern cfg_struct_t<WindowSizeConstraints> WindowSizeConstraintsSettings;
+extern cfg_bool PreferencesDPIBoost;
 
 // runtime vars
 extern uint32_t DPI;

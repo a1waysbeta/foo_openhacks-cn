@@ -2,6 +2,7 @@
 #include "hacks_core.h"
 #include "hacks_vars.h"
 #include "win32_utils.h"
+#include "hacks_dpi_hook.h"
 
 OpenHacksCore& OpenHacksCore::Get()
 {
@@ -17,16 +18,16 @@ void OpenHacksCore::Initialize()
         pfc::string8_fast errorMessage;
         if (mInitErrors & IncompatibleComponentInstalled)
         {
-            errorMessage << u8"\nOpenHacks 与 UIHacks 插件不兼容。";
+            errorMessage << "\nOpenHacks is not compatible with UIHacks.";
         }
 
         if (mInitErrors & HooksInstallError)
         {
-            errorMessage << u8"\n安装 Windows Hook 失败：" << format_win32_error(mInstallHooksWin32Error) << "(0x"
+            errorMessage << "\nfailed to install windows hook: " << format_win32_error(mInstallHooksWin32Error) << "(0x"
                          << pfc::format_hex(mInstallHooksWin32Error, 8) << ")";
         }
 
-        popup_message_v2::g_complain(core_api::get_main_window(), u8"OpenHacks 初始化失败", errorMessage);
+        popup_message_v2::g_complain(core_api::get_main_window(), "OpenHacks init failed", errorMessage);
         return;
     }
 
@@ -86,11 +87,18 @@ void OpenHacksCore::Initialize()
 
         // always send WM_SIZE in order to update rectangle stat internal.
         SendMessage(window, WM_SIZE, 0, 0);
+
+        // Install the Preferences DPI boost hook. The hook is always installed;
+        // whether it actually overrides DPI at runtime is gated by the
+        // PreferencesDPIBoost config flag, so the user can flip the switch in
+        // the preferences page without needing a foobar2000 restart.
+        OpenHacksDpiHook::Initialize();
     }
 }
 
 void OpenHacksCore::Finalize()
 {
+    OpenHacksDpiHook::Finalize();
     UninstallWindowHooks();
 }
 

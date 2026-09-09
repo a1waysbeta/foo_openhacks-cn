@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
@@ -25,6 +25,9 @@
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="hacks_core_status_bar_proc.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="hacks_dpi_hook.cpp">
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="win32_utils.cpp">
@@ -87,6 +90,9 @@
       <Filter>UI</Filter>
     </ClInclude>
     <ClInclude Include="hacks_core.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="hacks_dpi_hook.h">
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="win32_types.h">

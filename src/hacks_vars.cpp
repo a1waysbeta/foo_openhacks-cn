@@ -16,6 +16,8 @@ static const GUID cfg_guid_pseudo_caption = {0xf8a0ea9d, 0x3acc, 0x410a, {0xab, 
 static const GUID cfg_guid_saved_window_state = {0xc1e2b3d4, 0x5678, 0x90ab, {0xcd, 0xef, 0x12, 0x34, 0x56, 0x78, 0x90, 0xab}};
 // {D2E3B4C5-6789-01AB-CDEF-234567890ABC}
 static const GUID cfg_guid_window_size_constraints = {0xd2e3b4c5, 0x6789, 0x01ab, {0xcd, 0xef, 0x23, 0x45, 0x67, 0x89, 0x0a, 0xbc}};
+// {E3F4C5D6-7890-12AB-CDEF-34567890ABCD}
+static const GUID cfg_guid_preferences_dpi_boost = {0xe3f4c5d6, 0x7890, 0x12ab, {0xcd, 0xef, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd}};
 
 cfg_bool ShowMainMenu(cfg_guid_show_main_menu, true);
 cfg_bool ShowStatusBar(cfg_guid_show_status_bar, true);
@@ -23,6 +25,7 @@ cfg_int MainWindowFrameStyle(cfg_guid_main_window_frame_style, 0);
 cfg_struct_t<PseudoCaptionParam> PseudoCaptionSettings(cfg_guid_pseudo_caption);
 cfg_struct_t<WindowStateData> SavedWindowState(cfg_guid_saved_window_state);
 cfg_struct_t<WindowSizeConstraints> WindowSizeConstraintsSettings(cfg_guid_window_size_constraints);
+cfg_bool PreferencesDPIBoost(cfg_guid_preferences_dpi_boost, false);
 
 // runtime vars
 uint32_t DPI = USER_DEFAULT_SCREEN_DPI;

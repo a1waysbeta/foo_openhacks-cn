@@ -1,4 +1,4 @@
-﻿//{{NO_DEPENDENCIES}}
+//{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
 // Used by foo_openhacks.rc
 //
@@ -14,6 +14,7 @@
 #define IDC_MENUBAR                     1010
 #define IDC_STATUSBAR                   1011
 #define IDC_FRAME_STYLE                 1012
+#define IDC_PREF_DPI_BOOST              1050
 #define IDC_CHECK_LEFT                  1013
 #define IDC_EDIT_LEFT                   1014
 #define IDC_SPIN_LEFT                   1015
