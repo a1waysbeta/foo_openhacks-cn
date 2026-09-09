@@ -145,6 +145,8 @@ extern cfg_struct_t<PseudoCaptionParam> PseudoCaptionSettings;
 extern cfg_struct_t<WindowStateData> SavedWindowState;
 extern cfg_struct_t<WindowSizeConstraints> WindowSizeConstraintsSettings;
 extern cfg_bool PreferencesDPIBoost;
+extern cfg_bool GlobalDPIOverride;
+extern cfg_int DPIOverrideValue;
 
 // runtime vars
 extern uint32_t DPI;

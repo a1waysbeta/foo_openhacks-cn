@@ -15,6 +15,11 @@
 #define IDC_STATUSBAR                   1011
 #define IDC_FRAME_STYLE                 1012
 #define IDC_PREF_DPI_BOOST              1050
+#define IDC_GLOBAL_DPI_OVERRIDE         1051
+#define IDC_DPI_VALUE                   1052
+#define IDC_DPI_VALUE_LABEL             1053
+#define IDC_PREF_DPI_DESC               1054
+#define IDC_GLOBAL_DPI_DESC             1055
 #define IDC_CHECK_LEFT                  1013
 #define IDC_EDIT_LEFT                   1014
 #define IDC_SPIN_LEFT                   1015

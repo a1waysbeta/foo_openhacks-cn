@@ -18,6 +18,10 @@ static const GUID cfg_guid_saved_window_state = {0xc1e2b3d4, 0x5678, 0x90ab, {0x
 static const GUID cfg_guid_window_size_constraints = {0xd2e3b4c5, 0x6789, 0x01ab, {0xcd, 0xef, 0x23, 0x45, 0x67, 0x89, 0x0a, 0xbc}};
 // {E3F4C5D6-7890-12AB-CDEF-34567890ABCD}
 static const GUID cfg_guid_preferences_dpi_boost = {0xe3f4c5d6, 0x7890, 0x12ab, {0xcd, 0xef, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd}};
+// {F4A5B6C7-8901-23AB-CDEF-4567890ABCDE}
+static const GUID cfg_guid_global_dpi_override = {0xf4a5b6c7, 0x8901, 0x23ab, {0xcd, 0xef, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef}};
+// {A5B6C7D8-9012-34AB-CDEF-567890ABCDEF}
+static const GUID cfg_guid_dpi_override_value = {0xa5b6c7d8, 0x9012, 0x34ab, {0xcd, 0xef, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef}};
 
 cfg_bool ShowMainMenu(cfg_guid_show_main_menu, true);
 cfg_bool ShowStatusBar(cfg_guid_show_status_bar, true);
@@ -26,6 +30,9 @@ cfg_struct_t<PseudoCaptionParam> PseudoCaptionSettings(cfg_guid_pseudo_caption);
 cfg_struct_t<WindowStateData> SavedWindowState(cfg_guid_saved_window_state);
 cfg_struct_t<WindowSizeConstraints> WindowSizeConstraintsSettings(cfg_guid_window_size_constraints);
 cfg_bool PreferencesDPIBoost(cfg_guid_preferences_dpi_boost, false);
+cfg_bool GlobalDPIOverride(cfg_guid_global_dpi_override, false);
+// Default 144 = 150% scaling (a common step up from 96/120 system DPI).
+cfg_int DPIOverrideValue(cfg_guid_dpi_override_value, 144);
 
 // runtime vars
 uint32_t DPI = USER_DEFAULT_SCREEN_DPI;

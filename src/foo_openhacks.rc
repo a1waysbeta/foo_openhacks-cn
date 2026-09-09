@@ -58,7 +58,13 @@ BEGIN
     COMBOBOX        IDC_MENUBAR,62,18,95,30,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "Status bar:",IDC_STATIC,13,41,35,8
     COMBOBOX        IDC_STATUSBAR,62,40,95,30,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Preferences DPI boost (one step above system DPI)",IDC_PREF_DPI_BOOST,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,62,260,10
+    CONTROL         "DPI Override",IDC_PREF_HEADER7,"foobar2000:separator",WS_TABSTOP,0,60,336,14
+    LTEXT           "DPI value:",IDC_DPI_VALUE_LABEL,13,80,40,8
+    COMBOBOX        IDC_DPI_VALUE,62,78,80,30,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Preferences dialog",IDC_PREF_DPI_BOOST,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,98,120,10
+    LTEXT           "Apply only to the Preferences dialog. Reopen Preferences to take effect.",IDC_PREF_DPI_DESC,25,110,290,16
+    CONTROL         "Global (needs restart)",IDC_GLOBAL_DPI_OVERRIDE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,134,120,10
+    LTEXT           "Apply to the whole foobar2000 process. Requires restarting foobar2000 to take effect.",IDC_GLOBAL_DPI_DESC,25,146,290,16
 END
 
 IDD_PREF_MAINWINDOW DIALOGEX 0, 0, 336, 290

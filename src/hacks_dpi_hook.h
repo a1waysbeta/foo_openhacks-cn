@@ -25,4 +25,11 @@ bool IsOverrideActive();
 // For diagnostics: returns the boosted DPI value currently in use, or 0
 // when no override is active.
 uint32_t CurrentOverrideDPI();
+
+// Re-evaluate whether global mode should be active based on the current
+// config. Called by the preferences Apply handler when the user toggles the
+// global checkbox. Has no immediate visual effect on the main window
+// (process DPI cache is set at startup); the override applies on next
+// foobar2000 restart. Provided for symmetry and future use.
+void RefreshGlobalMode();
 } // namespace OpenHacksDpiHook
