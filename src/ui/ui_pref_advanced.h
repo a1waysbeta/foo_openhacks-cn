@@ -29,4 +29,5 @@ private:
 private:
     CComboBox mComboMenuBar;
     CComboBox mComboStatusBar;
+    CComboBox mComboDPIValue;
 };
