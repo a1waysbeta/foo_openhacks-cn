@@ -28,8 +28,13 @@ uint32_t CurrentOverrideDPI();
 
 // Re-evaluate whether global mode should be active based on the current
 // config. Called by the preferences Apply handler when the user toggles the
-// global checkbox. Has no immediate visual effect on the main window
-// (process DPI cache is set at startup); the override applies on next
-// foobar2000 restart. Provided for symmetry and future use.
+// global checkbox.
+//
+// Note: toggling at runtime flips the in-memory flag, but the main window and
+// its controls were already laid out during startup (before_ui_init) using
+// whatever GlobalDPIOverride value was set then. So the change only takes
+// full effect after restarting foobar2000 (at which point before_ui_init
+// reads the new value and installs the override before the main window is
+// created).
 void RefreshGlobalMode();
 } // namespace OpenHacksDpiHook

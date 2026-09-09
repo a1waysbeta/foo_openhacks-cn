@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "hacks_core.h"
 #include "hacks_vars.h"
+#include "hacks_dpi_hook.h"
 
 namespace
 {
@@ -16,6 +17,16 @@ public:
         }
         else if (stage == init_stages::before_ui_init)
         {
+            // Install DPI override hooks BEFORE the main window is created.
+            // This is critical for Global mode: foobar2000 core queries DPI
+            // while building the main window and its child controls; if the
+            // hooks are installed later (in on_init, after the main window
+            // exists), the whole main UI has already been laid out at the
+            // real system DPI and cannot be rescaled without a restart.
+            // Preferences mode does not depend on early installation; it is
+            // scoped to Preferences dialog creation and works either way.
+            OpenHacksDpiHook::Initialize();
+
             if (!OpenHacksCore::Get().CheckIncompatibleComponents())
                 return;
 

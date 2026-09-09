@@ -88,11 +88,9 @@ void OpenHacksCore::Initialize()
         // always send WM_SIZE in order to update rectangle stat internal.
         SendMessage(window, WM_SIZE, 0, 0);
 
-        // Install the Preferences DPI boost hook. The hook is always installed;
-        // whether it actually overrides DPI at runtime is gated by the
-        // PreferencesDPIBoost config flag, so the user can flip the switch in
-        // the preferences page without needing a foobar2000 restart.
-        OpenHacksDpiHook::Initialize();
+        // Note: DPI override hooks are installed in the before_ui_init stage
+        // (see hacks_init_callback.cpp) so that Global mode takes effect
+        // before the main window is created. They are NOT re-installed here.
     }
 }
 

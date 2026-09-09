@@ -363,22 +363,31 @@ INT_PTR WINAPI HookDialogBoxIndirectParamW(HINSTANCE hInstance, LPCDLGTEMPLATEW 
 HWND WINAPI HookCreateDialogParamW(HINSTANCE hInstance, LPCWSTR lpTemplateName,
                                     HWND hWndParent, DLGPROC lpDialogFunc, LPARAM dwInitParam)
 {
+    const bool activate = ShouldActivatePreferences(hWndParent, true, hInstance, lpTemplateName, nullptr);
+    // Set the flag BEFORE invoking the original so the dialog template's
+    // DLU -> pixel conversion (which happens inside CreateDialogParam)
+    // already sees the override DPI. This makes the dialog's overall size
+    // and the tree-view control scale correctly.
+    if (activate)
+        gPreferencesActive.store(true, std::memory_order_relaxed);
     HWND hwnd = OriginCreateDialogParamW(hInstance, lpTemplateName, hWndParent, lpDialogFunc, dwInitParam);
-    if (ShouldActivatePreferences(hWndParent, true, hInstance, lpTemplateName, nullptr))
-    {
+    // Install subclass so the flag stays true for the dialog's entire
+    // lifetime (runtime DPI queries for separators, tables, etc. during
+    // painting are then also intercepted).
+    if (activate)
         InstallPreferencesSubclass(hwnd);
-    }
     return hwnd;
 }
 
 HWND WINAPI HookCreateDialogIndirectParamW(HINSTANCE hInstance, LPCDLGTEMPLATEW lpTemplate,
                                             HWND hWndParent, DLGPROC lpDialogFunc, LPARAM dwInitParam)
 {
+    const bool activate = ShouldActivatePreferences(hWndParent, false, hInstance, nullptr, lpTemplate);
+    if (activate)
+        gPreferencesActive.store(true, std::memory_order_relaxed);
     HWND hwnd = OriginCreateDialogIndirectParamW(hInstance, lpTemplate, hWndParent, lpDialogFunc, dwInitParam);
-    if (ShouldActivatePreferences(hWndParent, false, hInstance, nullptr, lpTemplate))
-    {
+    if (activate)
         InstallPreferencesSubclass(hwnd);
-    }
     return hwnd;
 }
 
