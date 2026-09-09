@@ -1,7 +1,7 @@
 {
   "name": "openhacks",
   "version": "1.0.0",
-  "description": "一个带有界面增强和窗口管理功能的 foobar2000 组件。",
+  "description": "A foobar2000 component with UI enhancements and window management features",
   "homepage": "https://github.com/ttsping/foo_openhacks",
   "license": "MIT",
   "dependencies": [
