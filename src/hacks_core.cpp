@@ -2,7 +2,6 @@
 #include "hacks_core.h"
 #include "hacks_vars.h"
 #include "win32_utils.h"
-#include "hacks_dpi_hook.h"
 
 OpenHacksCore& OpenHacksCore::Get()
 {
@@ -87,16 +86,11 @@ void OpenHacksCore::Initialize()
 
         // always send WM_SIZE in order to update rectangle stat internal.
         SendMessage(window, WM_SIZE, 0, 0);
-
-        // Note: DPI override hooks are installed in the before_ui_init stage
-        // (see hacks_init_callback.cpp) so that Global mode takes effect
-        // before the main window is created. They are NOT re-installed here.
     }
 }
 
 void OpenHacksCore::Finalize()
 {
-    OpenHacksDpiHook::Finalize();
     UninstallWindowHooks();
 }
 
