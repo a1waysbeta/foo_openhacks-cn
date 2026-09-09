@@ -122,6 +122,195 @@ public:
     ScopedOverride& operator=(const ScopedOverride&) = delete;
 };
 
+// ============================================================================
+// Dialog template inspection
+//
+// We only want to override DPI for the Preferences dialog, not other
+// main-window-owned dialogs (About, Converter, etc.). The reliable signal
+// is the presence of a SysTreeView32 control in the dialog template —
+// Preferences has a tree-view on the left for category navigation, while
+// About/Converter do not.
+// ============================================================================
+
+// Walk a dialog template (DLGTEMPLATE or DLGTEMPLATEEX) and return true if
+// any control's class name is "SysTreeView32" (case-insensitive).
+bool TemplateHasTreeViewControl(LPCDLGTEMPLATEW pTemplate)
+{
+    if (!pTemplate)
+        return false;
+
+    const WORD* pw = reinterpret_cast<const WORD*>(pTemplate);
+    const bool isEx = (pw[0] == 1 && pw[1] == 0xFFFF);
+
+    WORD cItems;
+    DWORD style;
+    const WORD* pCursor = pw;
+
+    if (isEx)
+    {
+        // DLGTEMPLATEEX layout (WORD units):
+        //   0: dlgVer (1)
+        //   1: signature (0xFFFF)
+        //   2-3: helpID (DWORD)
+        //   4-5: exStyle (DWORD)
+        //   6-7: style (DWORD)
+        //   8: cItems
+        //   9: x, 10: y, 11: cx, 12: cy
+        style = static_cast<DWORD>(pw[6]) | (static_cast<DWORD>(pw[7]) << 16);
+        cItems = pw[8];
+        pCursor = pw + 13; // past header
+    }
+    else
+    {
+        // DLGTEMPLATE layout (WORD units):
+        //   0-1: style (DWORD)
+        //   2-3: exStyle (DWORD)
+        //   4: cdit
+        //   5: x, 6: y, 7: cx, 8: cy
+        style = static_cast<DWORD>(pw[0]) | (static_cast<DWORD>(pw[1]) << 16);
+        cItems = pw[4];
+        pCursor = pw + 9;
+    }
+
+    // Skip menu, class, title (each is 0x0000, or 0xFFFF + atom, or string)
+    auto SkipMenuOrClass = [](const WORD*& p) {
+        if (*p == 0)
+        {
+            p += 1; // empty
+        }
+        else if (*p == 0xFFFF)
+        {
+            p += 2; // 0xFFFF + atom
+        }
+        else
+        {
+            while (*p != 0) ++p;
+            ++p; // null terminator
+        }
+    };
+
+    auto SkipTitle = [](const WORD*& p) {
+        while (*p != 0) ++p;
+        ++p;
+    };
+
+    SkipMenuOrClass(pCursor); // menu
+    SkipMenuOrClass(pCursor); // class
+    SkipTitle(pCursor);       // title
+
+    if (style & DS_SETFONT)
+    {
+        if (isEx)
+        {
+            // pointSize(1), weight(1), italic+charset packed in 1 WORD, typeface string
+            pCursor += 1; // pointSize
+            pCursor += 1; // weight
+            pCursor += 1; // italic + charset (1 byte each, packed as 1 WORD)
+            SkipTitle(pCursor); // typeface
+        }
+        else
+        {
+            pCursor += 1; // pointSize
+            SkipTitle(pCursor); // typeface
+        }
+    }
+
+    // Iterate items
+    for (WORD i = 0; i < cItems; ++i)
+    {
+        // DWORD-align pCursor
+        pCursor = reinterpret_cast<const WORD*>(
+            (reinterpret_cast<uintptr_t>(pCursor) + 3) & ~static_cast<uintptr_t>(3));
+
+        // Skip item header
+        if (isEx)
+        {
+            // DLGITEMTEMPLATEEX: helpID(2), exStyle(2), style(2), x(1), y(1), cx(1), cy(1), id(2) = 12 words
+            pCursor += 12;
+        }
+        else
+        {
+            // DLGITEMTEMPLATE: style(2), exStyle(2), x(1), y(1), cx(1), cy(1), id(2) = 10 words
+            pCursor += 10;
+        }
+
+        // class
+        if (*pCursor == 0xFFFF)
+        {
+            pCursor += 2; // 0xFFFF + atom (no string to compare)
+        }
+        else
+        {
+            // String class name — compare case-insensitively to "SysTreeView32"
+            const WCHAR* className = reinterpret_cast<const WCHAR*>(pCursor);
+            static const WCHAR kNeedle[] = L"SysTreeView32";
+            const WCHAR* np = kNeedle;
+            const WCHAR* cp = className;
+            bool match = true;
+            while (*np)
+            {
+                WCHAR a = *cp;
+                WCHAR b = *np;
+                if (a >= L'A' && a <= L'Z') a = static_cast<WCHAR>(a + 32);
+                if (b >= L'A' && b <= L'Z') b = static_cast<WCHAR>(b + 32);
+                if (a != b) { match = false; break; }
+                ++cp; ++np;
+            }
+            if (match && *cp == 0)
+                return true;
+            // advance past the string
+            while (*pCursor != 0) ++pCursor;
+            ++pCursor; // null
+        }
+
+        // title
+        if (*pCursor == 0xFFFF)
+        {
+            pCursor += 2; // 0xFFFF + atom (resource id)
+        }
+        else
+        {
+            SkipTitle(pCursor);
+        }
+
+        // extra data
+        WORD cbExtra = *pCursor;
+        ++pCursor;
+        pCursor += (cbExtra + 1) / 2; // byte count to WORD count, rounded up
+    }
+
+    return false;
+}
+
+// Load a dialog template from a module's resources and check whether it
+// contains a SysTreeView32 control. Used for resource-based dialog creation
+// APIs (DialogBoxParamW, CreateDialogParamW).
+bool IsPreferencesDialogResource(HINSTANCE hInstance, LPCWSTR name)
+{
+    if (!name)
+        return false;
+
+    HRSRC hRes = FindResourceW(hInstance, name, RT_DIALOG);
+    if (!hRes)
+        return false;
+
+    HGLOBAL hLoad = LoadResource(hInstance, hRes);
+    if (!hLoad)
+        return false;
+
+    LPCDLGTEMPLATEW pTemplate = reinterpret_cast<LPCDLGTEMPLATEW>(LockResource(hLoad));
+    if (!pTemplate)
+        return false;
+
+    return TemplateHasTreeViewControl(pTemplate);
+}
+
+// Check an inline dialog template (passed directly to indirect dialog APIs).
+bool IsPreferencesDialogTemplateIndirect(LPCDLGTEMPLATEW pTemplate)
+{
+    return pTemplate && TemplateHasTreeViewControl(pTemplate);
+}
+
 // Hook implementations
 int WINAPI HookGetDeviceCaps(HDC hdc, int index)
 {
@@ -134,7 +323,12 @@ int WINAPI HookGetDeviceCaps(HDC hdc, int index)
 
 INT_PTR WINAPI HookDialogBoxParamW(HINSTANCE hInstance, LPCWSTR lpTemplateName, HWND hWndParent, DLGPROC lpDialogFunc, LPARAM dwInitParam)
 {
-    if (IsMainWindowOwner(hWndParent))
+    // Only override DPI for the Preferences dialog, identified by:
+    //   1. owner == foobar2000 main window
+    //   2. the dialog template contains a SysTreeView32 control
+    // This excludes other main-window-owned dialogs (About, Converter, etc.)
+    // which do not have a tree view.
+    if (IsMainWindowOwner(hWndParent) && IsPreferencesDialogResource(hInstance, lpTemplateName))
     {
         ScopedOverride guard;
         return OriginDialogBoxParamW(hInstance, lpTemplateName, hWndParent, lpDialogFunc, dwInitParam);
@@ -144,7 +338,7 @@ INT_PTR WINAPI HookDialogBoxParamW(HINSTANCE hInstance, LPCWSTR lpTemplateName, 
 
 INT_PTR WINAPI HookDialogBoxIndirectParamW(HINSTANCE hInstance, LPCDLGTEMPLATEW hDialogTemplate, HWND hWndParent, DLGPROC lpDialogFunc, LPARAM dwInitParam)
 {
-    if (IsMainWindowOwner(hWndParent))
+    if (IsMainWindowOwner(hWndParent) && IsPreferencesDialogTemplateIndirect(hDialogTemplate))
     {
         ScopedOverride guard;
         return OriginDialogBoxIndirectParamW(hInstance, hDialogTemplate, hWndParent, lpDialogFunc, dwInitParam);
@@ -154,7 +348,7 @@ INT_PTR WINAPI HookDialogBoxIndirectParamW(HINSTANCE hInstance, LPCDLGTEMPLATEW 
 
 HWND WINAPI HookCreateDialogParamW(HINSTANCE hInstance, LPCWSTR lpTemplateName, HWND hWndParent, DLGPROC lpDialogFunc, LPARAM dwInitParam)
 {
-    if (IsMainWindowOwner(hWndParent))
+    if (IsMainWindowOwner(hWndParent) && IsPreferencesDialogResource(hInstance, lpTemplateName))
     {
         ScopedOverride guard;
         return OriginCreateDialogParamW(hInstance, lpTemplateName, hWndParent, lpDialogFunc, dwInitParam);
@@ -164,7 +358,7 @@ HWND WINAPI HookCreateDialogParamW(HINSTANCE hInstance, LPCWSTR lpTemplateName, 
 
 HWND WINAPI HookCreateDialogIndirectParamW(HINSTANCE hInstance, LPCDLGTEMPLATEW lpTemplate, HWND hWndParent, DLGPROC lpDialogFunc, LPARAM dwInitParam)
 {
-    if (IsMainWindowOwner(hWndParent))
+    if (IsMainWindowOwner(hWndParent) && IsPreferencesDialogTemplateIndirect(lpTemplate))
     {
         ScopedOverride guard;
         return OriginCreateDialogIndirectParamW(hInstance, lpTemplate, hWndParent, lpDialogFunc, dwInitParam);
@@ -191,27 +385,27 @@ void DisableAllHooks()
     // will be cleaned up automatically at process exit.
     if (OriginGetDeviceCaps != nullptr)
     {
-        std::ignore = MH_DisableHook(&GetDeviceCaps);
+        (void)MH_DisableHook(&GetDeviceCaps);
         OriginGetDeviceCaps = nullptr;
     }
     if (OriginDialogBoxParamW != nullptr)
     {
-        std::ignore = MH_DisableHook(&DialogBoxParamW);
+        (void)MH_DisableHook(&DialogBoxParamW);
         OriginDialogBoxParamW = nullptr;
     }
     if (OriginDialogBoxIndirectParamW != nullptr)
     {
-        std::ignore = MH_DisableHook(&DialogBoxIndirectParamW);
+        (void)MH_DisableHook(&DialogBoxIndirectParamW);
         OriginDialogBoxIndirectParamW = nullptr;
     }
     if (OriginCreateDialogParamW != nullptr)
     {
-        std::ignore = MH_DisableHook(&CreateDialogParamW);
+        (void)MH_DisableHook(&CreateDialogParamW);
         OriginCreateDialogParamW = nullptr;
     }
     if (OriginCreateDialogIndirectParamW != nullptr)
     {
-        std::ignore = MH_DisableHook(&CreateDialogIndirectParamW);
+        (void)MH_DisableHook(&CreateDialogIndirectParamW);
         OriginCreateDialogIndirectParamW = nullptr;
     }
 }
@@ -226,10 +420,10 @@ bool Initialize()
 
     // MH_Initialize may have already been called by the COM module
     // (CLSIDFromProgID hook). Calling it again returns
-    // MH_ERROR_INITIALIZED, which we treat as success. Any other error
-    // is fatal — we cannot proceed without minhook.
+    // MH_ERROR_ALREADY_INITIALIZED, which we treat as success. Any other
+    // error is fatal — we cannot proceed without minhook.
     const MH_STATUS initStatus = MH_Initialize();
-    if (initStatus != MH_OK && initStatus != MH_ERROR_INITIALIZED)
+    if (initStatus != MH_OK && initStatus != MH_ERROR_ALREADY_INITIALIZED)
     {
         gHookInstalled = false;
         return false;
