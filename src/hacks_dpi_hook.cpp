@@ -417,14 +417,6 @@ bool EnableOneHook(void* target, void* detour, void** origin)
     return MH_EnableHook(target) == MH_OK;
 }
 
-template <typename Fn>
-bool EnableOneHookT(Fn* target, Fn* detour, Fn** origin)
-{
-    return EnableOneHook(reinterpret_cast<void*>(target),
-                         reinterpret_cast<void*>(detour),
-                         reinterpret_cast<void**>(origin));
-}
-
 void DisableAllHooks()
 {
     if (!gHookInstalled.exchange(false))
@@ -469,14 +461,33 @@ bool Initialize()
     bool ok = true;
 
     // Always-installed hooks (legacy APIs available on all supported Windows).
-    ok &= EnableOneHookT(&GetDeviceCaps, &HookGetDeviceCaps, &OriginGetDeviceCaps);
-    ok &= EnableOneHookT(&CreateFontIndirectW, &HookCreateFontIndirectW, &OriginCreateFontIndirectW);
-    ok &= EnableOneHookT(&CreateFontIndirectExW, &HookCreateFontIndirectExW, &OriginCreateFontIndirectExW);
-    ok &= EnableOneHookT(&DialogBoxParamW, &HookDialogBoxParamW, &OriginDialogBoxParamW);
-    ok &= EnableOneHookT(&DialogBoxIndirectParamW, &HookDialogBoxIndirectParamW, &OriginDialogBoxIndirectParamW);
-    ok &= EnableOneHookT(&CreateDialogParamW, &HookCreateDialogParamW, &OriginCreateDialogParamW);
-    ok &= EnableOneHookT(&CreateDialogIndirectParamW, &HookCreateDialogIndirectParamW, &OriginCreateDialogIndirectParamW);
-    ok &= EnableOneHookT(&SystemParametersInfoW, &HookSystemParametersInfoW, &OriginSystemParametersInfoW);
+    // Use EnableOneHook + reinterpret_cast because some SDK functions have
+    // const-qualified parameters (e.g. CreateFontIndirectW takes const LOGFONTW*),
+    // which would make a type-deducing template ambiguous.
+    ok &= EnableOneHook(reinterpret_cast<void*>(&GetDeviceCaps),
+                        reinterpret_cast<void*>(&HookGetDeviceCaps),
+                        reinterpret_cast<void**>(&OriginGetDeviceCaps));
+    ok &= EnableOneHook(reinterpret_cast<void*>(&CreateFontIndirectW),
+                        reinterpret_cast<void*>(&HookCreateFontIndirectW),
+                        reinterpret_cast<void**>(&OriginCreateFontIndirectW));
+    ok &= EnableOneHook(reinterpret_cast<void*>(&CreateFontIndirectExW),
+                        reinterpret_cast<void*>(&HookCreateFontIndirectExW),
+                        reinterpret_cast<void**>(&OriginCreateFontIndirectExW));
+    ok &= EnableOneHook(reinterpret_cast<void*>(&DialogBoxParamW),
+                        reinterpret_cast<void*>(&HookDialogBoxParamW),
+                        reinterpret_cast<void**>(&OriginDialogBoxParamW));
+    ok &= EnableOneHook(reinterpret_cast<void*>(&DialogBoxIndirectParamW),
+                        reinterpret_cast<void*>(&HookDialogBoxIndirectParamW),
+                        reinterpret_cast<void**>(&OriginDialogBoxIndirectParamW));
+    ok &= EnableOneHook(reinterpret_cast<void*>(&CreateDialogParamW),
+                        reinterpret_cast<void*>(&HookCreateDialogParamW),
+                        reinterpret_cast<void**>(&OriginCreateDialogParamW));
+    ok &= EnableOneHook(reinterpret_cast<void*>(&CreateDialogIndirectParamW),
+                        reinterpret_cast<void*>(&HookCreateDialogIndirectParamW),
+                        reinterpret_cast<void**>(&OriginCreateDialogIndirectParamW));
+    ok &= EnableOneHook(reinterpret_cast<void*>(&SystemParametersInfoW),
+                        reinterpret_cast<void*>(&HookSystemParametersInfoW),
+                        reinterpret_cast<void**>(&OriginSystemParametersInfoW));
 
     // Optional modern APIs. These are exported by user32.dll on Win10 1607+
     // and may be missing on older Windows. Failure to hook them is non-fatal;
