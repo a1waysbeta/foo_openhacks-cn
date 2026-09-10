@@ -30,6 +30,9 @@ private:
     void UpdateCtrlState();
     void ApplySettings();
 
+    void OnPickColor(int buttonId);
+    void UpdateColorButtonText(int buttonId, uint32_t color);
+
     void ShowOrHidePseudoCaptionOverlayAutomatically();
 
 private:

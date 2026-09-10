@@ -4,11 +4,31 @@
 #include "hacks_core.h"
 #include "hacks_vars.h"
 #include "hacks_guids.h"
+#include "hacks_colors.h"
+
+#include <commdlg.h>
 
 DECLARE_PREFERENCES_PAGE("Main window", UIPrefMainWindowDialog, 50.0, OpenHacksGuids::kMainWindowPageGuid, preferences_page::guid_display);
 
 namespace
 {
+struct ColorButtonEntry
+{
+    int buttonId;
+    uint32_t CustomColorScheme::* field;
+};
+
+const ColorButtonEntry kColorButtons[] = {
+    { IDC_BUTTON_COLOR_BACKGROUND, &CustomColorScheme::background },
+    { IDC_BUTTON_COLOR_TEXT, &CustomColorScheme::text },
+    { IDC_BUTTON_COLOR_FRAME, &CustomColorScheme::frame },
+    { IDC_BUTTON_COLOR_HIGHLIGHT, &CustomColorScheme::highlight },
+    { IDC_BUTTON_COLOR_SELECTION, &CustomColorScheme::selection },
+    { IDC_BUTTON_COLOR_SELECTION_TEXT, &CustomColorScheme::selectionText },
+};
+
+COLORREF sCustomColors[16] = {};
+
 void ReadPseudoCaptionSettingFromControls(HWND dlg, PseudoCaptionParam& param)
 {
     const auto ReadCtrlInt = [dlg](int32_t id) { return static_cast<int32_t>(GetDlgItemInt(dlg, id, nullptr, TRUE)); };
@@ -141,6 +161,25 @@ void UIPrefMainWindowDialog::OnCommand(UINT code, int id, CWindow ctrl)
         }
         break;
 
+    case IDC_CHECK_COLOR_ENABLED:
+        if (code == BN_CLICKED)
+        {
+            UpdateCtrlState();
+            OpenHacksColors::RefreshColorWindows();
+            NotifyStateChanges(true);
+        }
+        break;
+
+    case IDC_BUTTON_COLOR_BACKGROUND:
+    case IDC_BUTTON_COLOR_TEXT:
+    case IDC_BUTTON_COLOR_FRAME:
+    case IDC_BUTTON_COLOR_HIGHLIGHT:
+    case IDC_BUTTON_COLOR_SELECTION:
+    case IDC_BUTTON_COLOR_SELECTION_TEXT:
+        if (code == BN_CLICKED)
+            OnPickColor(id);
+        break;
+
     default:
         break;
     }
@@ -188,6 +227,12 @@ void UIPrefMainWindowDialog::LoadUIState()
     ::SetDlgItemInt(m_hWnd, IDC_MIN_HEIGHT, (UINT)sizeConstraints.minHeight, TRUE);
     ::SetDlgItemInt(m_hWnd, IDC_MAX_WIDTH, (UINT)sizeConstraints.maxWidth, TRUE);
     ::SetDlgItemInt(m_hWnd, IDC_MAX_HEIGHT, (UINT)sizeConstraints.maxHeight, TRUE);
+
+    // Load custom color scheme
+    const auto& colorScheme = OpenHacksVars::ColorScheme();
+    uButton_SetCheck(m_hWnd, IDC_CHECK_COLOR_ENABLED, colorScheme.enabled);
+    for (const auto& entry : kColorButtons)
+        UpdateColorButtonText(entry.buttonId, colorScheme.*(entry.field));
 }
 
 void UIPrefMainWindowDialog::SaveUIState()
@@ -209,6 +254,9 @@ void UIPrefMainWindowDialog::SaveUIState()
     sizeConstraints.minHeight = static_cast<int32_t>(GetDlgItemInt(IDC_MIN_HEIGHT, nullptr, TRUE));
     sizeConstraints.maxWidth = static_cast<int32_t>(GetDlgItemInt(IDC_MAX_WIDTH, nullptr, TRUE));
     sizeConstraints.maxHeight = static_cast<int32_t>(GetDlgItemInt(IDC_MAX_HEIGHT, nullptr, TRUE));
+
+    // Save custom color scheme (color values are written immediately on pick)
+    OpenHacksVars::ColorScheme().enabled = uButton_GetCheck(m_hWnd, IDC_CHECK_COLOR_ENABLED);
 }
 
 void UIPrefMainWindowDialog::UpdateCtrlState()
@@ -259,6 +307,11 @@ void UIPrefMainWindowDialog::UpdateCtrlState()
     ::EnableWindow(GetDlgItem(IDC_MAX_HEIGHT), maxSizeEnabled);
     ::EnableWindow(GetDlgItem(IDC_SPIN_MAX_HEIGHT), maxSizeEnabled);
     ::EnableWindow(GetDlgItem(IDC_USE_CUR_MAX_HEIGHT), maxSizeEnabled);
+
+    // Custom color scheme controls
+    const bool colorsEnabled = uButton_GetCheck(m_hWnd, IDC_CHECK_COLOR_ENABLED);
+    for (const auto& entry : kColorButtons)
+        ::EnableWindow(GetDlgItem(entry.buttonId), colorsEnabled);
 }
 
 void UIPrefMainWindowDialog::ApplySettings()
@@ -266,6 +319,47 @@ void UIPrefMainWindowDialog::ApplySettings()
     auto& api = OpenHacksCore::Get();
     api.ApplyMainWindowFrameStyle(static_cast<WindowFrameStyle>((int32_t)OpenHacksVars::MainWindowFrameStyle));
     api.ApplyWindowSizeConstraints();
+    OpenHacksColors::RefreshColorWindows();
+}
+
+void UIPrefMainWindowDialog::UpdateColorButtonText(int buttonId, uint32_t color)
+{
+    wchar_t text[16] = {};
+    swprintf_s(text, L"#%02X%02X%02X", GetRValue(color), GetGValue(color), GetBValue(color));
+    ::SetDlgItemText(m_hWnd, buttonId, text);
+}
+
+void UIPrefMainWindowDialog::OnPickColor(int buttonId)
+{
+    const ColorButtonEntry* entry = nullptr;
+    for (const auto& e : kColorButtons)
+    {
+        if (e.buttonId == buttonId)
+        {
+            entry = &e;
+            break;
+        }
+    }
+    if (entry == nullptr)
+        return;
+
+    auto& scheme = OpenHacksVars::ColorScheme();
+    uint32_t& field = scheme.*(entry->field);
+
+    CHOOSECOLORW chooser = {};
+    chooser.lStructSize = sizeof(chooser);
+    chooser.hwndOwner = m_hWnd;
+    chooser.rgbResult = field;
+    chooser.lpCustColors = sCustomColors;
+    chooser.Flags = CC_FULLOPEN | CC_RGBINIT;
+
+    if (ChooseColorW(&chooser) == FALSE)
+        return;
+
+    field = chooser.rgbResult;
+    UpdateColorButtonText(buttonId, chooser.rgbResult);
+    OpenHacksColors::RefreshColorWindows();
+    NotifyStateChanges(true);
 }
 
 void UIPrefMainWindowDialog::ShowOrHidePseudoCaptionOverlayAutomatically()
