@@ -29,6 +29,48 @@ const ColorButtonEntry kColorButtons[] = {
 
 COLORREF sCustomColors[16] = {};
 
+// Draws the "RGB(r,g,b)" label over a color swatch button, shrinking the font
+// until the text fits the button width.
+void DrawColorSwatchText(CDCHandle dc, HWND button, const RECT& rcButton, const wchar_t* text, COLORREF textColor)
+{
+    LOGFONTW lf = {};
+    if (const HFONT baseFont = (HFONT)::SendMessage(button, WM_GETFONT, 0, 0); baseFont != nullptr)
+        ::GetObjectW(baseFont, sizeof(lf), &lf);
+    if (lf.lfHeight == 0)
+        lf.lfHeight = -12;
+
+    CRect rcText(rcButton);
+    rcText.DeflateRect(3, 0);
+
+    int fontHeight = lf.lfHeight < 0 ? lf.lfHeight : -lf.lfHeight;
+    for (int attempt = 0; attempt < 5; ++attempt)
+    {
+        lf.lfHeight = fontHeight;
+        HFONT font = ::CreateFontIndirectW(&lf);
+        HGDIOBJ prevFont = font != nullptr ? ::SelectObject(dc, font) : nullptr;
+        CRect measure = rcText;
+        const int measured = dc.DrawText(text, -1, measure, DT_CALCRECT | DT_SINGLELINE | DT_NOPREFIX);
+        const bool fits = (measured == 0 || measure.Width() <= rcText.Width());
+        if (fits)
+        {
+            dc.SetTextColor(textColor);
+            dc.SetBkMode(TRANSPARENT);
+            dc.DrawText(text, -1, rcText, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX | DT_END_ELLIPSIS);
+        }
+        if (prevFont != nullptr)
+            ::SelectObject(dc, prevFont);
+        if (font != nullptr)
+            ::DeleteObject(font);
+        if (fits)
+            return;
+        ++fontHeight;
+    }
+
+    dc.SetTextColor(textColor);
+    dc.SetBkMode(TRANSPARENT);
+    dc.DrawText(text, -1, rcText, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX | DT_END_ELLIPSIS);
+}
+
 void ReadPseudoCaptionSettingFromControls(HWND dlg, PseudoCaptionParam& param)
 {
     const auto ReadCtrlInt = [dlg](int32_t id) { return static_cast<int32_t>(GetDlgItemInt(dlg, id, nullptr, TRUE)); };
@@ -324,9 +366,9 @@ void UIPrefMainWindowDialog::ApplySettings()
 
 void UIPrefMainWindowDialog::UpdateColorButtonText(int buttonId, uint32_t color)
 {
-    wchar_t text[16] = {};
-    swprintf_s(text, L"#%02X%02X%02X", GetRValue(color), GetGValue(color), GetBValue(color));
-    ::SetDlgItemText(m_hWnd, buttonId, text);
+    (void)color;
+    // Buttons are owner-drawn swatches; trigger a repaint instead of setting text.
+    ::InvalidateRect(::GetDlgItem(m_hWnd, buttonId), nullptr, TRUE);
 }
 
 void UIPrefMainWindowDialog::OnPickColor(int buttonId)
@@ -360,6 +402,54 @@ void UIPrefMainWindowDialog::OnPickColor(int buttonId)
     UpdateColorButtonText(buttonId, chooser.rgbResult);
     OpenHacksColors::RefreshColorWindows();
     NotifyStateChanges(true);
+}
+
+void UIPrefMainWindowDialog::OnDrawItem(UINT id, LPDRAWITEMSTRUCT dis)
+{
+    (void)id;
+    if (dis == nullptr || dis->CtlType != ODT_BUTTON)
+    {
+        SetMsgHandled(FALSE);
+        return;
+    }
+
+    const ColorButtonEntry* entry = nullptr;
+    for (const auto& e : kColorButtons)
+    {
+        if (e.buttonId == static_cast<int>(dis->CtlID))
+        {
+            entry = &e;
+            break;
+        }
+    }
+    if (entry == nullptr)
+    {
+        SetMsgHandled(FALSE);
+        return;
+    }
+
+    const uint32_t color = OpenHacksVars::ColorScheme().*(entry->field);
+    const bool disabled = (dis->itemState & ODS_DISABLED) != 0;
+    CDCHandle dc(dis->hDC);
+    CRect rc(dis->rcItem);
+
+    dc.FillSolidRect(rc, static_cast<COLORREF>(color));
+    dc.DrawEdge(rc, disabled ? BDR_SUNKENOUTER : ((dis->itemState & ODS_SELECTED) != 0 ? EDGE_SUNKEN : EDGE_RAISED), BF_RECT);
+
+    const int luminance = (GetRValue(color) * 299 + GetGValue(color) * 587 + GetBValue(color) * 114) / 1000;
+    const COLORREF textColor = disabled ? (luminance > 127 ? RGB(96, 96, 96) : RGB(200, 200, 200))
+                                        : (luminance > 127 ? RGB(0, 0, 0) : RGB(255, 255, 255));
+
+    wchar_t text[32] = {};
+    swprintf_s(text, L"RGB(%d,%d,%d)", GetRValue(color), GetGValue(color), GetBValue(color));
+    DrawColorSwatchText(dc, dis->hwndItem, rc, text, textColor);
+
+    if ((dis->itemState & ODS_FOCUS) != 0)
+    {
+        CRect rcFocus(rc);
+        rcFocus.DeflateRect(2, 2);
+        dc.DrawFocusRect(rcFocus);
+    }
 }
 
 void UIPrefMainWindowDialog::ShowOrHidePseudoCaptionOverlayAutomatically()

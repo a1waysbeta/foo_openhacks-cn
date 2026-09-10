@@ -12,6 +12,7 @@ public:
     BEGIN_MSG_MAP(UIPrefAdvancedDialog)
         CHAIN_MSG_MAP(UIPrefDialogBase)
         MSG_WM_COMMAND(OnCommand)
+        MSG_WM_DRAWITEM(OnDrawItem)
         MSG_WM_SETFOCUS(OnSetFocus)
         REFLECT_NOTIFICATIONS_EX()
     END_MSG_MAP()
@@ -32,6 +33,7 @@ private:
 
     void OnPickColor(int buttonId);
     void UpdateColorButtonText(int buttonId, uint32_t color);
+    void OnDrawItem(UINT id, LPDRAWITEMSTRUCT dis);
 
     void ShowOrHidePseudoCaptionOverlayAutomatically();
 
