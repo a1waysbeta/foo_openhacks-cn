@@ -29,5 +29,7 @@ void PaintStatusBar(HWND wnd, HDC dc);
 void PaintReBarErase(HWND wnd, HDC dc);
 void PaintReBar(HWND wnd, HDC dc, const RECT* rcPaint);
 
-// --- Splitter bars / panel gutters ---
+// --- Generic background-only erase (rebar band children, panel gutters) ---
+// Fills the whole client area with the scheme background color.
+void PaintBackgroundErase(HWND wnd, HDC dc);
 } // namespace OpenHacksColorsPaint

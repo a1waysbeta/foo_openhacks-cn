@@ -520,6 +520,17 @@ namespace OpenHacksColorsPaint
 				rcText.left += 2;
 			}
 			hdc.DrawText(buffer, (int)wcslen(buffer), rcText, DT_VCENTER | DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
-		}
 	}
+}
+
+// =================================================
+// Generic background-only erase
+// =================================================
+
+void PaintBackgroundErase(HWND wnd, HDC dc)
+{
+	CRect rcClient;
+	::GetClientRect(wnd, &rcClient);
+	CDCHandle(dc).FillSolidRect(rcClient, SchemeColor(OpenHacksColors::GetSchemeColors().background));
+}
 } // namespace OpenHacksColorsPaint

@@ -88,6 +88,27 @@ void OpenHacksCore::Initialize()
         // Discover existing tab/header children and attach color hijack to them.
         AttachColorChildWindows(window);
 
+        // Hijack existing rebar band children so their background matches the
+        // scheme (menu band / toolbar panels erase themselves otherwise).
+        if (mRebarWindow != nullptr)
+        {
+            const UINT bandCount = (UINT)SendMessage(mRebarWindow, RB_GETBANDCOUNT, 0, 0);
+            for (UINT i = 0; i < bandCount; ++i)
+            {
+                REBARBANDINFO rebarInfo = {};
+                rebarInfo.cbSize = sizeof(rebarInfo);
+                rebarInfo.fMask = RBBIM_CHILD;
+                if (SendMessage(mRebarWindow, RB_GETBANDINFO, (WPARAM)i, (LPARAM)&rebarInfo) != 0 && rebarInfo.hwndChild != nullptr)
+                {
+                    AttachBackgroundOnlyWindow(rebarInfo.hwndChild);
+                }
+            }
+        }
+
+        // DUI layout panels (tabs, splitters) are created asynchronously after
+        // Initialize; watch window creation to hijack them as they appear.
+        InstallColorWinEventHook();
+
         // always send WM_SIZE in order to update rectangle stat internal.
         SendMessage(window, WM_SIZE, 0, 0);
     }
@@ -95,6 +116,7 @@ void OpenHacksCore::Initialize()
 
 void OpenHacksCore::Finalize()
 {
+    UninstallColorWinEventHook();
     UninstallWindowHooks();
 }
 

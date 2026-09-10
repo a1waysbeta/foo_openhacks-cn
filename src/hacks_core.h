@@ -77,6 +77,14 @@ private:
         return Get().OpenHacksColorChildProc(wnd, msg, wp, lp);
     }
 
+    FORCEINLINE static void CALLBACK StaticOpenHacksWinEventProc(HWINEVENTHOOK hook, DWORD event, HWND wnd, LONG idObject, LONG idChild, DWORD idEventThread, DWORD dwmsEventTime)
+    {
+        (void)hook;
+        (void)idEventThread;
+        (void)dwmsEventTime;
+        Get().OnColorWinEvent(event, wnd, idObject, idChild);
+    }
+
     FORCEINLINE bool IsMenuBarVisible() const
     {
         return mMainMenuWindow != nullptr && IsWindowVisible(mMainMenuWindow);
@@ -91,6 +99,11 @@ private:
 
     void AttachColorChildWindow(HWND wnd, bool probeLog);
     void AttachColorChildWindows(HWND parent);
+    void AttachBackgroundOnlyWindow(HWND wnd);
+
+    void OnColorWinEvent(DWORD event, HWND wnd, LONG idObject, LONG idChild);
+    void InstallColorWinEventHook();
+    void UninstallColorWinEventHook();
 
     void UninstallWindowHooks();
     bool InstallWindowHooksInternal();
@@ -116,6 +129,7 @@ private:
     HWND mStatusBar = nullptr;
     HHOOK mCallWndHook = nullptr;
     HHOOK mGetMsgHook = nullptr;
+    HWINEVENTHOOK mColorWinEventHook = nullptr;
     WNDPROC mMainWindowOriginProc = nullptr;
     WNDPROC mStatusBarOriginProc = nullptr;
     WNDPROC mReBarOriginProc = nullptr;
