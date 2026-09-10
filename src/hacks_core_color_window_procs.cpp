@@ -3,6 +3,7 @@
 #include "hacks_priv.h"
 #include "hacks_colors.h"
 #include "hacks_colors_paint.h"
+#include "str.h"
 
 #include <cstdint>
 #include <mutex>
@@ -88,9 +89,9 @@ void OpenHacksCore::AttachColorChildWindow(HWND wnd, bool probeLog)
             std::lock_guard<std::mutex> lock(sProbeMutex);
             if (sProbeLoggedClasses.insert(className).second)
             {
-                const pfc::string_utf8_from_wide utf8Name(className);
+                const auto utf8Name = Utility::ToUTF8(className);
                 pfc::string8 message("[openhacks] probe: unhandled child window class: ");
-                message << (const char*)utf8Name;
+                message << utf8Name.c_str();
                 console::print(message);
             }
         }

@@ -28,23 +28,6 @@ namespace
 		HGDIOBJ mOld = nullptr;
 	};
 
-	class DCStateScope
-	{
-	public:
-		DCStateScope(HDC dc) : mDC(dc), mSaved(::SaveDC(dc)) {}
-		~DCStateScope()
-		{
-			if (mSaved != 0)
-				::RestoreDC(mDC, mSaved);
-		}
-		DCStateScope(const DCStateScope&) = delete;
-		DCStateScope& operator=(const DCStateScope&) = delete;
-
-	private:
-		HDC mDC = nullptr;
-		int mSaved = 0;
-	};
-
 	COLORREF SchemeColor(uint32_t value)
 	{
 		return static_cast<COLORREF>(value);
@@ -214,7 +197,7 @@ namespace OpenHacksColorsPaint
 	{
 		CRect rcClient;
 		::GetClientRect(wnd, &rcClient);
-		CDCHandle(hdc).FillSolidRect(rcClient, SchemeColor(OpenHacksColors::GetSchemeColors().background));
+		CDCHandle(dc).FillSolidRect(rcClient, SchemeColor(OpenHacksColors::GetSchemeColors().background));
 	}
 
 	void PaintTabs(HWND wnd, HDC dc, const RECT* rcPaint)
@@ -261,7 +244,7 @@ namespace OpenHacksColorsPaint
 	{
 		CRect rcClient;
 		::GetClientRect(wnd, &rcClient);
-		CDCHandle(hdc).FillSolidRect(rcClient, SchemeColor(OpenHacksColors::GetSchemeColors().background));
+		CDCHandle(dc).FillSolidRect(rcClient, SchemeColor(OpenHacksColors::GetSchemeColors().background));
 	}
 
 	void PaintHeader(HWND wnd, HDC dc, const RECT* rcPaint)
@@ -311,7 +294,7 @@ namespace OpenHacksColorsPaint
 				ds.rcItem = rc;
 				ds.itemData = item.lParam;
 
-				DCStateScope scope(dc);
+				pfc::DCStateScope scope(dc);
 				::SendMessage(::GetParent(wnd), WM_DRAWITEM, (WPARAM)ds.CtlID, (LPARAM)&ds);
 				continue;
 			}
@@ -395,7 +378,7 @@ namespace OpenHacksColorsPaint
 	{
 		CRect rcClient;
 		::GetClientRect(wnd, &rcClient);
-		CDCHandle(hdc).FillSolidRect(rcClient, SchemeColor(OpenHacksColors::GetSchemeColors().background));
+		CDCHandle(dc).FillSolidRect(rcClient, SchemeColor(OpenHacksColors::GetSchemeColors().background));
 	}
 
 	void PaintStatusBar(HWND wnd, HDC dc)
@@ -457,17 +440,18 @@ namespace OpenHacksColorsPaint
 				ds.hDC = dc;
 				ds.rcItem = rcPart;
 
-				DCStateScope scope(dc);
+				pfc::DCStateScope scope(dc);
 				::SendMessage(::GetParent(wnd), WM_DRAWITEM, (WPARAM)ds.CtlID, (LPARAM)&ds);
 			}
 			else
 			{
-				CString text;
-				int type = 0;
-				sb.GetText(iPart, text, &type);
-
-				if ((type & SBT_OWNERDRAW) == 0)
+				const LRESULT info = ::SendMessage(wnd, SB_GETTEXTLENGTH, (WPARAM)iPart, 0);
+				if ((HIWORD(info) & SBT_OWNERDRAW) == 0 && LOWORD(info) > 0)
 				{
+					CString text;
+					::SendMessage(wnd, SB_GETTEXT, (WPARAM)iPart, (LPARAM)text.GetBuffer(LOWORD(info)));
+					text.ReleaseBuffer();
+
 					CRect rcText = rcPart;
 					const int defMargin = rcText.Height() / 4;
 					const int l = iconMargin > 0 ? iconMargin : defMargin;
@@ -492,7 +476,7 @@ namespace OpenHacksColorsPaint
 	{
 		CRect rcClient;
 		::GetClientRect(wnd, &rcClient);
-		CDCHandle(hdc).FillSolidRect(rcClient, SchemeColor(OpenHacksColors::GetSchemeColors().background));
+		CDCHandle(dc).FillSolidRect(rcClient, SchemeColor(OpenHacksColors::GetSchemeColors().background));
 	}
 
 	void PaintReBar(HWND wnd, HDC dc, const RECT* rcPaint)
