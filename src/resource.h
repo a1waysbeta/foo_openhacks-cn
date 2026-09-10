@@ -1,4 +1,4 @@
-﻿//{{NO_DEPENDENCIES}}
+//{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
 // Used by foo_openhacks.rc
 //
@@ -52,6 +52,13 @@
 #define IDC_MAX_HEIGHT                  1047
 #define IDC_SPIN_MAX_HEIGHT             1048
 #define IDC_USE_CUR_MAX_HEIGHT          1049
+#define IDC_CHECK_COLOR_ENABLED         1050
+#define IDC_BUTTON_COLOR_BACKGROUND     1051
+#define IDC_BUTTON_COLOR_TEXT           1052
+#define IDC_BUTTON_COLOR_FRAME          1053
+#define IDC_BUTTON_COLOR_HIGHLIGHT      1054
+#define IDC_BUTTON_COLOR_SELECTION      1055
+#define IDC_BUTTON_COLOR_SELECTION_TEXT 1056
 
 // Next default values for new objects
 // 
@@ -59,7 +66,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        103
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1038
+#define _APS_NEXT_CONTROL_VALUE         1057
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

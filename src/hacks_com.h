@@ -75,8 +75,31 @@ __interface IOpenHacks : IDispatch
     COM_PROPGET(PseudoCaptionBottomEnabled, [out, retval] VARIANT_BOOL* pValue);
     COM_PROPPUT(PseudoCaptionBottomEnabled, [in] VARIANT_BOOL value);
 
+    // CustomColorScheme Properties (COLORREF: 0x00BBGGRR)
+    COM_PROPGET(CustomColorsEnabled, [out, retval] VARIANT_BOOL* pValue);
+    COM_PROPPUT(CustomColorsEnabled, [in] VARIANT_BOOL value);
+
+    COM_PROPGET(CustomColorBackground, [out, retval] LONG* pValue);
+    COM_PROPPUT(CustomColorBackground, [in] LONG value);
+
+    COM_PROPGET(CustomColorText, [out, retval] LONG* pValue);
+    COM_PROPPUT(CustomColorText, [in] LONG value);
+
+    COM_PROPGET(CustomColorFrame, [out, retval] LONG* pValue);
+    COM_PROPPUT(CustomColorFrame, [in] LONG value);
+
+    COM_PROPGET(CustomColorHighlight, [out, retval] LONG* pValue);
+    COM_PROPPUT(CustomColorHighlight, [in] LONG value);
+
+    COM_PROPGET(CustomColorSelection, [out, retval] LONG* pValue);
+    COM_PROPPUT(CustomColorSelection, [in] LONG value);
+
+    COM_PROPGET(CustomColorSelectionText, [out, retval] LONG* pValue);
+    COM_PROPPUT(CustomColorSelectionText, [in] LONG value);
+
     // Methods
     STDMETHOD(ToggleMenuBar)();
     STDMETHOD(ToggleStatusBar)();
     STDMETHOD(ToggleFullscreen)();
+    STDMETHOD(ApplyCustomColors)();
 };

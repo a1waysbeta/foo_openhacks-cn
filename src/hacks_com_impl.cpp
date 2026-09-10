@@ -3,6 +3,7 @@
 
 #include "hacks_core.h"
 #include "hacks_vars.h"
+#include "hacks_colors.h"
 #include "win32_utils.h"
 
 STDMETHODIMP OpenHacksCOM::get_DPI(LONG* pValue)
@@ -278,5 +279,105 @@ STDMETHODIMP OpenHacksCOM::get_PseudoCaptionBottomEnabled(VARIANT_BOOL* pValue)
 STDMETHODIMP OpenHacksCOM::put_PseudoCaptionBottomEnabled(VARIANT_BOOL value)
 {
     OpenHacksVars::PseudoCaption().marginStates.bottom = TO_BOOLEAN(value);
+    return S_OK;
+}
+
+// CustomColorScheme Properties (COLORREF: 0x00BBGGRR)
+
+STDMETHODIMP OpenHacksCOM::get_CustomColorsEnabled(VARIANT_BOOL* pValue)
+{
+    RETURN_HR_IF(pValue == nullptr, E_POINTER);
+    *pValue = TO_VARIANT_BOOL(OpenHacksVars::ColorScheme().enabled);
+    return S_OK;
+}
+
+STDMETHODIMP OpenHacksCOM::put_CustomColorsEnabled(VARIANT_BOOL value)
+{
+    OpenHacksVars::ColorScheme().enabled = TO_BOOLEAN(value);
+    OpenHacksColors::RefreshColorWindows();
+    return S_OK;
+}
+
+STDMETHODIMP OpenHacksCOM::get_CustomColorBackground(LONG* pValue)
+{
+    RETURN_HR_IF(pValue == nullptr, E_POINTER);
+    *pValue = static_cast<LONG>(OpenHacksVars::ColorScheme().background);
+    return S_OK;
+}
+
+STDMETHODIMP OpenHacksCOM::put_CustomColorBackground(LONG value)
+{
+    OpenHacksVars::ColorScheme().background = static_cast<uint32_t>(value);
+    return S_OK;
+}
+
+STDMETHODIMP OpenHacksCOM::get_CustomColorText(LONG* pValue)
+{
+    RETURN_HR_IF(pValue == nullptr, E_POINTER);
+    *pValue = static_cast<LONG>(OpenHacksVars::ColorScheme().text);
+    return S_OK;
+}
+
+STDMETHODIMP OpenHacksCOM::put_CustomColorText(LONG value)
+{
+    OpenHacksVars::ColorScheme().text = static_cast<uint32_t>(value);
+    return S_OK;
+}
+
+STDMETHODIMP OpenHacksCOM::get_CustomColorFrame(LONG* pValue)
+{
+    RETURN_HR_IF(pValue == nullptr, E_POINTER);
+    *pValue = static_cast<LONG>(OpenHacksVars::ColorScheme().frame);
+    return S_OK;
+}
+
+STDMETHODIMP OpenHacksCOM::put_CustomColorFrame(LONG value)
+{
+    OpenHacksVars::ColorScheme().frame = static_cast<uint32_t>(value);
+    return S_OK;
+}
+
+STDMETHODIMP OpenHacksCOM::get_CustomColorHighlight(LONG* pValue)
+{
+    RETURN_HR_IF(pValue == nullptr, E_POINTER);
+    *pValue = static_cast<LONG>(OpenHacksVars::ColorScheme().highlight);
+    return S_OK;
+}
+
+STDMETHODIMP OpenHacksCOM::put_CustomColorHighlight(LONG value)
+{
+    OpenHacksVars::ColorScheme().highlight = static_cast<uint32_t>(value);
+    return S_OK;
+}
+
+STDMETHODIMP OpenHacksCOM::get_CustomColorSelection(LONG* pValue)
+{
+    RETURN_HR_IF(pValue == nullptr, E_POINTER);
+    *pValue = static_cast<LONG>(OpenHacksVars::ColorScheme().selection);
+    return S_OK;
+}
+
+STDMETHODIMP OpenHacksCOM::put_CustomColorSelection(LONG value)
+{
+    OpenHacksVars::ColorScheme().selection = static_cast<uint32_t>(value);
+    return S_OK;
+}
+
+STDMETHODIMP OpenHacksCOM::get_CustomColorSelectionText(LONG* pValue)
+{
+    RETURN_HR_IF(pValue == nullptr, E_POINTER);
+    *pValue = static_cast<LONG>(OpenHacksVars::ColorScheme().selectionText);
+    return S_OK;
+}
+
+STDMETHODIMP OpenHacksCOM::put_CustomColorSelectionText(LONG value)
+{
+    OpenHacksVars::ColorScheme().selectionText = static_cast<uint32_t>(value);
+    return S_OK;
+}
+
+STDMETHODIMP OpenHacksCOM::ApplyCustomColors()
+{
+    OpenHacksColors::RefreshColorWindows();
     return S_OK;
 }

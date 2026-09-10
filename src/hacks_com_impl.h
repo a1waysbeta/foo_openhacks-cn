@@ -93,10 +93,33 @@ public:
     STDMETHOD(get_PseudoCaptionBottomEnabled)(VARIANT_BOOL* pValue);
     STDMETHOD(put_PseudoCaptionBottomEnabled)(VARIANT_BOOL value);
 
+    // CustomColorScheme Properties (COLORREF: 0x00BBGGRR)
+    STDMETHOD(get_CustomColorsEnabled)(VARIANT_BOOL* pValue);
+    STDMETHOD(put_CustomColorsEnabled)(VARIANT_BOOL value);
+
+    STDMETHOD(get_CustomColorBackground)(LONG* pValue);
+    STDMETHOD(put_CustomColorBackground)(LONG value);
+
+    STDMETHOD(get_CustomColorText)(LONG* pValue);
+    STDMETHOD(put_CustomColorText)(LONG value);
+
+    STDMETHOD(get_CustomColorFrame)(LONG* pValue);
+    STDMETHOD(put_CustomColorFrame)(LONG value);
+
+    STDMETHOD(get_CustomColorHighlight)(LONG* pValue);
+    STDMETHOD(put_CustomColorHighlight)(LONG value);
+
+    STDMETHOD(get_CustomColorSelection)(LONG* pValue);
+    STDMETHOD(put_CustomColorSelection)(LONG value);
+
+    STDMETHOD(get_CustomColorSelectionText)(LONG* pValue);
+    STDMETHOD(put_CustomColorSelectionText)(LONG value);
+
     // Methods
     STDMETHOD(ToggleMenuBar)();
     STDMETHOD(ToggleStatusBar)();
     STDMETHOD(ToggleFullscreen)();
+    STDMETHOD(ApplyCustomColors)();
 
 private:
     static HRESULT HookCLSIDFromProgID();
