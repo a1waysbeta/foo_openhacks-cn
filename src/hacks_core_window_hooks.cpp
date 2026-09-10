@@ -95,6 +95,11 @@ LRESULT OpenHacksCore::OpenHacksCallWndProc(int code, WPARAM wp, LPARAM lp)
                     OpenHacksVars::DPI = Utility::GetDPI(mMainMenuWindow);
                 }
             }
+            else if (pcwps->hwnd != mMainWindow && IsChild(mMainWindow, pcwps->hwnd))
+            {
+                // Dynamically created children (e.g. layout changes): attach color hijack.
+                AttachColorChildWindow(pcwps->hwnd, true);
+            }
 
             break;
         }

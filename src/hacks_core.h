@@ -72,6 +72,11 @@ private:
         return Get().OpenHacksReBarProc(wnd, msg, wp, lp);
     }
 
+    FORCEINLINE static LRESULT CALLBACK StaticOpenHacksColorChildProc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
+    {
+        return Get().OpenHacksColorChildProc(wnd, msg, wp, lp);
+    }
+
     FORCEINLINE bool IsMenuBarVisible() const
     {
         return mMainMenuWindow != nullptr && IsWindowVisible(mMainMenuWindow);
@@ -82,6 +87,10 @@ private:
     LRESULT OpenHacksGetMessageProc(int code, WPARAM wp, LPARAM lp);
     LRESULT OpenHacksStatusBarProc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp);
     LRESULT OpenHacksReBarProc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp);
+    LRESULT OpenHacksColorChildProc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp);
+
+    void AttachColorChildWindow(HWND wnd, bool probeLog);
+    void AttachColorChildWindows(HWND parent);
 
     void UninstallWindowHooks();
     bool InstallWindowHooksInternal();

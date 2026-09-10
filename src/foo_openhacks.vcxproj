@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -199,6 +199,8 @@
     <ClInclude Include="hacks_priv.h" />
     <ClInclude Include="hacks_menu.h" />
     <ClInclude Include="hacks_vars.h" />
+    <ClInclude Include="hacks_colors.h" />
+    <ClInclude Include="hacks_colors_paint.h" />
     <ClInclude Include="hacks_version.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="resource.h" />
@@ -225,6 +227,9 @@
     <ClCompile Include="hacks_core_main_window_proc.cpp" />
     <ClCompile Include="hacks_menu.cpp" />
     <ClCompile Include="hacks_vars.cpp" />
+    <ClCompile Include="hacks_colors.cpp" />
+    <ClCompile Include="hacks_colors_paint.cpp" />
+    <ClCompile Include="hacks_core_color_window_procs.cpp" />
     <ClCompile Include="hacks_init_callback.cpp" />
     <ClCompile Include="hacks_version.cpp" />
     <ClCompile Include="pch.cpp">

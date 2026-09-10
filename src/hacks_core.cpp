@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "hacks_core.h"
 #include "hacks_vars.h"
+#include "hacks_colors.h"
 #include "win32_utils.h"
 
 OpenHacksCore& OpenHacksCore::Get()
@@ -83,6 +84,9 @@ void OpenHacksCore::Initialize()
             mStatusBar = statusBar;
             mStatusBarOriginProc = (WNDPROC)SetWindowLongPtr(statusBar, GWLP_WNDPROC, (LONG_PTR)StaticOpenHacksStatusBarProc);
         }
+
+        // Discover existing tab/header children and attach color hijack to them.
+        AttachColorChildWindows(window);
 
         // always send WM_SIZE in order to update rectangle stat internal.
         SendMessage(window, WM_SIZE, 0, 0);

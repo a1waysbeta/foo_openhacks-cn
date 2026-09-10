@@ -132,6 +132,20 @@ struct WindowStateData
         return state;
     }
 };
+
+// Custom color scheme for hijacked chrome elements
+// (tab headers, list headers, status bar, rebar, splitter bars, scrollbars)
+struct CustomColorScheme
+{
+    bool enabled = false;
+    uint32_t background = 0x00202020;
+    uint32_t text = 0x00C0C0C0;
+    uint32_t frame = 0x00000000;
+    uint32_t highlight = 0x00383838;
+    uint32_t selection = 0x00777777;
+    uint32_t selectionText = 0x00101010;
+    int32_t reserved[8] = {};
+};
 #pragma pack(pop)
 
 namespace OpenHacksVars
@@ -144,6 +158,7 @@ extern cfg_int MainWindowFrameStyle;
 extern cfg_struct_t<PseudoCaptionParam> PseudoCaptionSettings;
 extern cfg_struct_t<WindowStateData> SavedWindowState;
 extern cfg_struct_t<WindowSizeConstraints> WindowSizeConstraintsSettings;
+extern cfg_struct_t<CustomColorScheme> CustomColorSchemeSettings;
 
 // runtime vars
 extern uint32_t DPI;
@@ -152,6 +167,11 @@ extern uint32_t DPI;
 inline PseudoCaptionParam& PseudoCaption()
 {
     return PseudoCaptionSettings.get_value();
+}
+
+inline CustomColorScheme& ColorScheme()
+{
+    return CustomColorSchemeSettings.get_value();
 }
 
 inline WindowStateData& SavedWindowStateRef()
