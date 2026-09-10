@@ -277,7 +277,7 @@ namespace OpenHacksColorsPaint
 
 			wchar_t text[512] = {};
 			HDITEMW item = {};
-			item.mask = HDI_TEXT | HDI_FORMAT | HDI_BITMAP | HDI_PARAM;
+			item.mask = HDI_TEXT | HDI_FORMAT | HDI_BITMAP | HDI_LPARAM;
 			item.pszText = text;
 			item.cchTextMax = (int)(std::size(text) - 1);
 			header.GetItem(i, &item);
@@ -294,7 +294,7 @@ namespace OpenHacksColorsPaint
 				ds.rcItem = rc;
 				ds.itemData = item.lParam;
 
-				pfc::DCStateScope scope(dc);
+				::DCStateScope scope(dc);
 				::SendMessage(::GetParent(wnd), WM_DRAWITEM, (WPARAM)ds.CtlID, (LPARAM)&ds);
 				continue;
 			}
@@ -440,7 +440,7 @@ namespace OpenHacksColorsPaint
 				ds.hDC = dc;
 				ds.rcItem = rcPart;
 
-				pfc::DCStateScope scope(dc);
+				::DCStateScope scope(dc);
 				::SendMessage(::GetParent(wnd), WM_DRAWITEM, (WPARAM)ds.CtlID, (LPARAM)&ds);
 			}
 			else
